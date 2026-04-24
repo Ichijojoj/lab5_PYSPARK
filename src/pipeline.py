@@ -17,25 +17,25 @@ class MLPipeline:
     def run(self):
         spark = self.spark_manager.spark
         try:
-            # 1. Sanity Check (WordCount)
+            # Sanity Check (WordCount)
             checker = SanityChecker(spark)
             checker.run_wordcount()
 
-            # 2. Подготовка данных
+            # данные
             preprocessor = DataPreprocessor(spark, self.config)
             raw_df = preprocessor.load_data()
             clean_df = preprocessor.clean_data(raw_df)
 
-            # 3. Кешируем данные перед ML пайплайном для ускорения
+            # кеш перед пайплайном для ускорения
             clean_df.cache()
             self.logger.info(f"Размер очищенной выборки: {clean_df.count()} строк.")
 
-            # 4. Векторизация и масштабирование
+            #векторизация и масштабирование
             feature_pipeline = preprocessor.build_feature_pipeline()
             feature_model = feature_pipeline.fit(clean_df)
             ml_df = feature_model.transform(clean_df)
 
-            # 5. Кластеризация
+            #кластеризация
             modeler = ClusteringModeler(self.config)
             modeler.train(ml_df)
             modeler.evaluate(ml_df)
@@ -47,5 +47,4 @@ class MLPipeline:
             self.logger.error(f"Критическая ошибка в пайплайне: {e}", exc_info=True)
             raise
         finally:
-            # Освобождение ресурсов гарантируется блоком finally
             self.spark_manager.stop()
