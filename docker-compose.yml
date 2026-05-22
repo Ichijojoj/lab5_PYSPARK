@@ -8,7 +8,6 @@ services:
       - "1521:1521"
     volumes:
       - ./init_db:/container-entrypoint-initdb.d
-    # Проверка "здоровья" БД: ждем, пока она начнет принимать запросы
     healthcheck:
       test: ["CMD-SHELL", "echo 'SELECT 1 FROM DUAL;' | sqlplus -S SYSTEM/oracle_password@localhost/XEPDB1 || exit 1"]
       interval: 15s
@@ -16,12 +15,25 @@ services:
       retries: 20
       start_period: 60s
 
+  # Запуск сборки и выполнения Scala Data Mart из внутренней подпапки
+  scala-data-mart:
+    build: ./datamart_scala
+    container_name: scala_data_mart
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    environment:
+      - DB_URL=jdbc:oracle:thin:@oracle-db:1521/XEPDB1
+      - DB_USER=SYSTEM
+      - DB_PASSWORD=oracle_password
+
+  # Запуск вашей Python-модели после успешной сборки витрины
   pyspark-app:
     build: .
     container_name: pyspark_clustering
     depends_on:
-      oracle-db:
-        condition: service_healthy # Spark запустится ТОЛЬКО после того, как Oracle будет готов
+      scala-data-mart:
+        condition: service_completed_successfully
     environment:
       - DB_URL=jdbc:oracle:thin:@oracle-db:1521/XEPDB1
       - DB_USER=SYSTEM

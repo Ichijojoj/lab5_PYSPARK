@@ -4,7 +4,6 @@ from typing import List
 
 @dataclass
 class AppConfig:
-    # Настройки ML
     model_save_path: str = "models/kmeans_food_model"
     feature_columns: List[str] = field(default_factory=lambda: [
         'energy_100g', 'fat_100g', 'carbohydrates_100g', 'sugars_100g', 'proteins_100g', 'salt_100g'
@@ -18,6 +17,6 @@ class AppConfig:
     db_password: str = os.getenv("DB_PASSWORD", "oracle_password")
     db_driver: str = "oracle.jdbc.driver.OracleDriver"
 
-    # ИСПРАВЛЕНО: Явно указываем схему SYSTEM
-    source_table: str = "SYSTEM.RAW_FOOD_DATA"
+    # источником для модели служит таблица-витрина
+    source_table: str = "SYSTEM.PREPROCESSED_FOOD_DATA"
     target_table: str = "SYSTEM.FOOD_CLUSTERS_RESULT"
