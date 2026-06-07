@@ -1,4 +1,5 @@
 import logging
+from pyspark.errors import PySparkException, AnalysisException, IllegalArgumentException
 from lab5_PYSPARK.src.config import AppConfig
 from lab5_PYSPARK.src.spark_manager import SparkManager
 from lab5_PYSPARK.src.sanity_check import SanityChecker
@@ -11,7 +12,9 @@ class MLPipeline:
 
     def __init__(self):
         self.config = AppConfig()
-        self.spark_manager = SparkManager(self.config.app_name)
+        # Считывание параметров Spark из конфигурационного файла
+        spark_configs = self.config.load_spark_config()
+        self.spark_manager = SparkManager(spark_configs)
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def run(self):
@@ -43,8 +46,23 @@ class MLPipeline:
 
             self.logger.info("Пайплайн успешно завершен!")
 
+        except FileNotFoundError as e:
+            self.logger.error(f"Не найден файл или путь к данным: {e}")
+            raise
+        except AnalysisException as e:
+            self.logger.error(f"Ошибка анализа Spark SQL (проверьте схему, разделители или типы колонок): {e}")
+            raise
+        except IllegalArgumentException as e:
+            self.logger.error(f"Некорректные аргументы при настройке алгоритма ML / сборщика признаков: {e}")
+            raise
+        except PySparkException as e:
+            self.logger.error(f"Внутренняя ошибка выполнения среды PySpark: {e}")
+            raise
+        except KeyboardInterrupt:
+            self.logger.warning("Процесс выполнения был прерван пользователем.")
+            raise
         except Exception as e:
-            self.logger.error(f"Критическая ошибка в пайплайне: {e}", exc_info=True)
+            self.logger.error(f"Непредвиденная системная ошибка в пайплайне: {e}", exc_info=True)
             raise
         finally:
             self.spark_manager.stop()
