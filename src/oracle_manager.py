@@ -25,6 +25,7 @@ class OracleManager:
                     .option("user", self.config.db_user) \
                     .option("password", self.config.db_password) \
                     .option("driver", self.config.db_driver) \
+                    .option("fetchsize", "10000") \
                     .load()
 
                 count = df.count()
@@ -39,7 +40,7 @@ class OracleManager:
                 time.sleep(delay)
 
     def load_results(self, df: DataFrame) -> None:
-        """Сохраняет результаты работы модели (Load)."""
+        """Сохраняет результаты работы модели (Load) с оптимизированным batchsize."""
         self.logger.info(f"Выгрузка результатов кластеризации в таблицу {self.config.target_table}...")
 
         columns_to_drop = ["raw_features", "features"]
@@ -53,6 +54,7 @@ class OracleManager:
                 .option("user", self.config.db_user) \
                 .option("password", self.config.db_password) \
                 .option("driver", self.config.db_driver) \
+                .option("batchsize", "5000") \
                 .mode("overwrite") \
                 .save()
             self.logger.info("Результаты работы модели сохранены!")
