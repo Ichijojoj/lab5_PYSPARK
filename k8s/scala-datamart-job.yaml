@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: scala-data-mart-job
+  namespace: bigdata
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: scala-data-mart
+        image: datamart-scala-k8s:latest
+        imagePullPolicy: IfNotPresent  # Добавлено для использования локального образа
+        envFrom:
+        - configMapRef:
+            name: spark-k8s-config
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-credentials
+              key: oracle-password
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "3Gi"
+            cpu: "1500m"

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oracle-db
+  namespace: bigdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oracle-db
+  template:
+    metadata:
+      labels:
+        app: oracle-db
+    spec:
+      containers:
+      - name: oracle-xe
+        image: gvenzl/oracle-xe:21-slim
+        ports:
+        - containerPort: 1521
+        env:
+        - name: ORACLE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oracle-credentials
+              key: oracle-password
+        resources:
+          requests:
+            memory: "1.5Gi"
+            cpu: "1000m"
+          limits:
+            memory: "2.5Gi"
+            cpu: "2000m"
+        # Монтирование тома со скриптом инициализации
+        volumeMounts:
+        - name: init-sql-volume
+          mountPath: /container-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "SELECT 1 FROM DUAL;" | sqlplus -S SYSTEM/$ORACLE_PASSWORD@localhost/XEPDB1 | grep -q "1"
+          initialDelaySeconds: 45
+          periodSeconds: 15
+      # Декларация тома на основе ConfigMap
+      volumes:
+      - name: init-sql-volume
+        configMap:
+          name: oracle-init-sql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oracle-service
+  namespace: bigdata
+spec:
+  ports:
+  - port: 1521
+    targetPort: 1521
+  selector:
+    app: oracle-db
