@@ -1,32 +1,38 @@
+import os
 from dataclasses import dataclass, field
 from typing import Dict
 
 
 @dataclass
 class SparkConfig:
-    app_name: str = "Oracle_KMeans_Clustering_Mart"
-    master: str = "local[*]"
+    """Конфигурация Spark, оптимизированная под запуск в контейнере Kubernetes."""
+
+    app_name: str = "K8s_PySpark_KMeans_Clustering"
+
+    master: str = os.getenv("SPARK_MASTER", "local[*]")
 
     configs: Dict[str, str] = field(default_factory=lambda: {
-        "spark.driver.memory": "4g",
-        "spark.executor.memory": "4g",
+        # Лимиты ресурсов на контейнер (синхронизировано с k8s limits)
+        "spark.driver.memory": os.getenv("SPARK_DRIVER_MEMORY", "2g"),
+        "spark.executor.memory": os.getenv("SPARK_EXECUTOR_MEMORY", "2g"),
+        "spark.kubernetes.container.image": os.getenv("SPARK_IMAGE", "pyspark-k8s-app:latest"),
 
-        # 1. Оптимизация сериализации данных
+        # Оптимизация сериализации данных
         "spark.serializer": "org.apache.spark.serializer.KryoSerializer",
         "spark.kryoserializer.buffer.max": "512m",
 
-        # 2. Оптимизация интеграции Python и JVM через Apache Arrow
+        # Интеграция Python и JVM через Apache Arrow
         "spark.sql.execution.arrow.pyspark.enabled": "true",
 
-        # 3. Пути к драйверам баз данных (включая Oracle JDBC)
+        # Пути к JDBC-драйверам внутри k8s-контейнера
         "spark.jars": "/opt/spark/jars/ojdbc8.jar",
         "spark.driver.extraClassPath": "/opt/spark/jars/ojdbc8.jar",
         "spark.executor.extraClassPath": "/opt/spark/jars/ojdbc8.jar",
 
-        # 4. Тюнинг параллелизма и разделов (подгоняется под количество ядер процессора локальной машины)
-        "spark.sql.shuffle.partitions": "8",
-        "spark.default.parallelism": "8",
+        # Тюнинг параллелизма в зависимости от ядер подов
+        "spark.sql.shuffle.partitions": os.getenv("SPARK_SHUFFLE_PARTITIONS", "4"),
+        "spark.default.parallelism": os.getenv("SPARK_DEFAULT_PARALLELISM", "4"),
 
-        # 5. Очистка локальных метаданных и временных файлов для предотвращения утечки памяти
-        "spark.cleaner.periodicGC.interval": "10min"
+        # Очистка ресурсов во избежание утечек памяти в долгоживущих подах
+        "spark.cleaner.periodicGC.interval": "15min"
     })

@@ -24,8 +24,10 @@ class DataMart:
         self.db.load_results(df)
 
     def _validate_schema(self, df: DataFrame):
-        """Проверка структуры перед записью"""
+        """Проверка структуры перед записью (регистронезависимая)"""
         required_cols = {'id', 'cluster'}
-        if not required_cols.issubset(set(df.columns)):
-            raise ValueError(f"Ошибка формата данных! Ожидались колонки: {required_cols}")
+        # Приведение имен колонок к нижнему регистру для успешного прохождения проверки
+        df_cols_lower = {col.lower() for col in df.columns}
+        if not required_cols.issubset(df_cols_lower):
+            raise ValueError(f"Ошибка формата данных! Ожидались колонки: {required_cols}. Доступно в DF: {set(df.columns)}")
         self.logger.info("Проверка схемы данных пройдена успешно.")
