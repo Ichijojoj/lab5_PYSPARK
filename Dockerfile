@@ -1,20 +1,33 @@
-FROM python:3.10-slim
+FROM apache/spark:3.5.1-scala2.12-java11-ubuntu
 
-RUN apt-get update && \
-    apt-get install -y default-jre wget libpq-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+USER root
 
-RUN mkdir -p /opt/spark/jars && \
-    wget -qO /opt/spark/jars/ojdbc8.jar https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc8/21.1.0.0/ojdbc8-21.1.0.0.jar
+# Установка системных зависимостей для сборки Python-пакетов
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-ENV SPARK_HOME="/usr/local/lib/python3.10/site-packages/pyspark"
-ENV PYTHONPATH="${PYTHONPATH}:/app"
-
+# Создание рабочих директорий
 WORKDIR /app
+
+# Копирование и установка зависимостей Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Скачивание и добавление Oracle JDBC-драйвера в Spark jars
+ADD https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc8/21.1.0.0/ojdbc8-21.1.0.0.jar /opt/spark/jars/ojdbc8.jar
+RUN chmod 644 /opt/spark/jars/ojdbc8.jar
 
-CMD ["python", "main.py"]
+# Копирование исходного кода приложения
+COPY src/ /app/src/
+COPY main.py /app/
+
+# Назначение прав пользователю spark во избежание проблем безопасности в k8s (securityContext)
+RUN chown -R 185:185 /app
+USER 185
+
+ENV PYTHONPATH="/app"
+
+ENTRYPOINT ["/opt/spark/bin/spark-submit", "/app/main.py"]
