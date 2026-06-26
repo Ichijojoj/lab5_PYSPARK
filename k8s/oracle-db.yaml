@@ -27,11 +27,10 @@ spec:
         resources:
           requests:
             memory: "1.5Gi"
-            cpu: "1000m"
+            cpu: "500m"
           limits:
             memory: "2.5Gi"
-            cpu: "2000m"
-        # Монтирование тома со скриптом инициализации
+            cpu: "1500m"
         volumeMounts:
         - name: init-sql-volume
           mountPath: /container-entrypoint-initdb.d
@@ -44,7 +43,6 @@ spec:
               echo "SELECT 1 FROM DUAL;" | sqlplus -S SYSTEM/$ORACLE_PASSWORD@localhost/XEPDB1 | grep -q "1"
           initialDelaySeconds: 45
           periodSeconds: 15
-      # Декларация тома на основе ConfigMap
       volumes:
       - name: init-sql-volume
         configMap:

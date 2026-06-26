@@ -1,4 +1,7 @@
 import logging
+import os
+import resource
+import psutil
 from py4j.protocol import Py4JJavaError
 from pyspark.errors import AnalysisException, IllegalArgumentException
 
@@ -12,13 +15,44 @@ from src.data_mart import DataMart
 
 
 class MLPipeline:
-    """Основной оркестратор ML-процесса в Kubernetes."""
+    """Основной оркестратор ML-процесса в Kubernetes с профилированием ресурсов."""
 
     def __init__(self):
         self.config = AppConfig()
         self.spark_config = SparkConfig()
         self.spark_manager = SparkManager(self.spark_config)
         self.logger = logging.getLogger(self.__class__.__name__)
+
+    def _log_resource_utilization(self) -> None:
+        """Сбор и логирование показателей утилизации ресурсов процессом."""
+        try:
+            process = psutil.Process(os.getpid())
+
+            # Текущее потребление памяти процессом
+            mem_info = process.memory_info()
+            rss_mb = mem_info.rss / (1024 * 1024)
+            vms_mb = mem_info.vms / (1024 * 1024)
+
+            # Пиковое потребление памяти (Max RSS) всей группы процессов на уровне ОС
+            usage = resource.getrusage(resource.RUSAGE_SELF)
+            # На Linux resource.ru_maxrss возвращается в килобайтах
+            peak_rss_mb = usage.ru_maxrss / 1024.0
+
+            # Статистика по процессору
+            cpu_times = process.cpu_times()
+            user_cpu_time = cpu_times.user
+            system_cpu_time = cpu_times.system
+
+            self.logger.info("=" * 50)
+            self.logger.info("📊 ОТЧЕТ ОБ УТИЛИЗАЦИИ РЕСУРСОВ КОНТЕЙНЕРА (Job):")
+            self.logger.info(f"   - Текущая физическая память (RSS): {rss_mb:.2f} MB")
+            self.logger.info(f"   - Виртуальная память (VMS): {vms_mb:.2f} MB")
+            self.logger.info(f"   - Пиковая физическая память (Max RSS): {peak_rss_mb:.2f} MB")
+            self.logger.info(f"   - Время CPU (пользовательское): {user_cpu_time:.2f} сек")
+            self.logger.info(f"   - Время CPU (системное): {system_cpu_time:.2f} сек")
+            self.logger.info("=" * 50)
+        except Exception as e:
+            self.logger.warning(f"Не удалось собрать метрики утилизации ресурсов: {e}")
 
     def run(self) -> None:
         spark = self.spark_manager.spark
@@ -64,4 +98,6 @@ class MLPipeline:
             self.logger.error(f"Ошибка валидации данных на уровне бизнес-логики: {val_err}")
             raise
         finally:
+            # Сбор метрик перед выгрузкой контекста
+            self._log_resource_utilization()
             self.spark_manager.stop()

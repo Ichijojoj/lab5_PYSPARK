@@ -10,7 +10,7 @@ spec:
       containers:
       - name: scala-data-mart
         image: datamart-scala-k8s:latest
-        imagePullPolicy: IfNotPresent  # Добавлено для использования локального образа
+        imagePullPolicy: IfNotPresent
         envFrom:
         - configMapRef:
             name: spark-k8s-config
@@ -22,8 +22,8 @@ spec:
               key: oracle-password
         resources:
           requests:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1024Mi"
+            cpu: "500m"
           limits:
-            memory: "3Gi"
-            cpu: "1500m"
+            memory: "1536Mi"
+            cpu: "1000m"

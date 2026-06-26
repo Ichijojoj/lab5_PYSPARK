@@ -7,11 +7,10 @@ data:
   DB_HOST: "oracle-service"
   DB_PORT: "1521"
   DB_SID: "XEPDB1"
-  # Добавлено для совместимости со Scala-приложением:
   DB_URL: "jdbc:oracle:thin:@oracle-service:1521/XEPDB1"
   DB_USER: "SYSTEM"
 
   SPARK_MASTER: "local[*]"
-  SPARK_DRIVER_MEMORY: "1500m"
-  SPARK_EXECUTOR_MEMORY: "1500m"
+  SPARK_DRIVER_MEMORY: "1024m"
+  SPARK_EXECUTOR_MEMORY: "1024m"
   SPARK_SHUFFLE_PARTITIONS: "4"
